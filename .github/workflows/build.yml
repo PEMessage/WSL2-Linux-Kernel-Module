@@ -1,0 +1,59 @@
+name: Build WSL Kernel and Modules
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  KERNEL_DIR: ${{ github.workspace }}/wsl-kernel
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential flex bison libssl-dev libelf-dev bc python3 \
+          kmod cpio
+
+    - name: Download WSL kernel source
+      run: |
+        wget https://github.com/microsoft/WSL2-Linux-Kernel/archive/refs/tags/linux-msft-wsl-5.15.167.4.zip
+        unzip linux-msft-wsl-5.15.167.4.zip
+        rm linux-msft-wsl-5.15.167.4.zip
+        mv WSL2-Linux-Kernel-linux-msft-wsl-5.15.167.4 wsl-kernel
+
+    - name: Configure kernel
+      working-directory: ./wsl-kernel
+      run: |
+        make KCONFIG_CONFIG=Microsoft/config-wsl olddefconfig
+
+    - name: Build kernel
+      working-directory: ./wsl-kernel
+      run: |
+        make -j$(nproc) KCONFIG_CONFIG=Microsoft/config-wsl
+
+    - name: Build out-of-tree kernel modules
+      run: |
+        # Find all module directories with Makefiles and build them
+        find modules -name .module | while read makefile; do
+          module_dir=$(dirname "$makefile")
+          echo "Building module in $module_dir"
+          make -C "$KERNEL_DIR" M=$PWD/$module_dir modules
+        done
+
+    - name: Archive build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: wsl-kernel-and-modules
+        path: |
+          # wsl-kernel/arch/x86/boot/bzImage
+          modules/**/*.ko
