@@ -18,7 +18,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y \
           build-essential flex bison libssl-dev libelf-dev bc python3 \
-          kmod cpio
+          kmod cpio pahole
 
     - name: Download WSL kernel source
       run: |
