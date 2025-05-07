@@ -12,6 +12,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
 
     - name: Install dependencies
       run: |
@@ -40,7 +42,7 @@ jobs:
     - name: Build out-of-tree kernel modules
       run: |
         # Find all module directories with Makefiles and build them
-        find modules -name .module | while read makefile; do
+        find modules -name Makefile | while read makefile; do
           module_dir=$(dirname "$makefile")
           echo "Building module in $module_dir"
           make -C "$KERNEL_DIR" M=$PWD/$module_dir modules
